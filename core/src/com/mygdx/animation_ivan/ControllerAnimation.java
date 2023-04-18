@@ -1,10 +1,6 @@
 package com.mygdx.animation_ivan;
 
-import static com.badlogic.gdx.Input.Keys.LEFT;
-import static com.badlogic.gdx.Input.Keys.RIGHT;
-import static com.badlogic.gdx.Input.Keys.UP;
-import static java.awt.Event.DOWN;
-
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
@@ -13,12 +9,18 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector3;
+import com.github.czyzby.websocket.WebSocket;
+import com.github.czyzby.websocket.WebSocketListener;
+import com.github.czyzby.websocket.WebSockets;
+
+import org.json.JSONObject;
 
 import java.awt.Rectangle;
 
 public class ControllerAnimation implements ApplicationListener {
 	private static final int SCR_HEIGHT = 480;
 	private static final int SCR_WIDTH = 800;
+	private int lastSend = 0;
 
 	Animation<TextureRegion> walk_animation;
 	Texture player;
@@ -35,8 +37,25 @@ public class ControllerAnimation implements ApplicationListener {
 	public float stateTime = 0f;
 	Animation<TextureRegion> playerAnim;
 
+	WebSocket socket;
+	String address = "localhost";
+	int port = 8888;
+
+	// Es poden enviar dades al render() en tems real!
+	// Millor no fer-ho a cada frame per no saturar el server
+	// ni ralentitzar el joc
 	@Override
 	public void create() {
+
+		if (Gdx.app.getType() == Application.ApplicationType.Android)
+			// en Android el host és accessible per 10.0.2.2
+			address = "10.0.2.2";
+		socket = WebSockets.newSocket(WebSockets.toWebSocketUrl(address, port));
+		socket.setSendGracefully(false);
+		socket.addListener((WebSocketListener) new MyWSListener());
+		socket.connect();
+		socket.send("Enviar dades");
+
 		player = new Texture(Gdx.files.internal("spritesheet.png"));
 		// facilities per calcular el "touch"
 		up = new Rectangle(0, SCR_HEIGHT * 2 / 3, SCR_WIDTH, SCR_HEIGHT / 3);
@@ -97,6 +116,16 @@ public class ControllerAnimation implements ApplicationListener {
 		batch.draw(frame, Player.transform[0], Player.transform[1], 0, 0, frame.getRegionWidth(), frame.getRegionHeight(), 5, 5, 0);
 
 		batch.end();
+
+
+		if (stateTime - lastSend > 1.0f) {
+			lastSend = (int) stateTime;
+			JSONObject json = new JSONObject();
+			json.put("player_x", Player.transform[0]);
+			json.put("player_y", Player.transform[1]);
+			socket.send(json.toString());
+		}
+
 	}
 
 	@Override
@@ -133,6 +162,39 @@ public class ControllerAnimation implements ApplicationListener {
 				}
 			}
 		return IDLE;
+	}
+
+	class MyWSListener implements WebSocketListener {
+
+		@Override
+		public boolean onOpen(WebSocket webSocket) {
+			System.out.println("Opening...");
+			return false;
+		}
+
+		@Override
+		public boolean onClose(WebSocket webSocket, int closeCode, String reason) {
+			System.out.println("Closing...");
+			return false;
+		}
+
+		@Override
+		public boolean onMessage(WebSocket webSocket, String packet) {
+			System.out.println("Message:");
+			return false;
+		}
+
+		@Override
+		public boolean onMessage(WebSocket webSocket, byte[] packet) {
+			System.out.println("Message:");
+			return false;
+		}
+
+		@Override
+		public boolean onError(WebSocket webSocket, Throwable error) {
+			System.out.println("ERROR:" + error.toString());
+			return false;
+		}
 	}
 
 }
