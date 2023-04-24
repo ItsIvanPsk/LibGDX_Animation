@@ -41,9 +41,6 @@ public class ControllerAnimation implements ApplicationListener {
 	String address = "localhost";
 	int port = 8888;
 
-	// Es poden enviar dades al render() en tems real!
-	// Millor no fer-ho a cada frame per no saturar el server
-	// ni ralentitzar el joc
 	@Override
 	public void create() {
 
@@ -107,7 +104,7 @@ public class ControllerAnimation implements ApplicationListener {
 				Player.transform[0] += Player.speed;
 				break;
 			case 3:
-				Player.transform[0] += Player.speed;
+				Player.transform[0] -= Player.speed;
 				break;
 			default: // IDLE
 				break;
@@ -149,8 +146,6 @@ public class ControllerAnimation implements ApplicationListener {
 			if (Gdx.input.isTouched(i)) {
 				Vector3 touchPos = new Vector3();
 				touchPos.set(Gdx.input.getX(i), Gdx.input.getY(i), 0);
-				// traducció de coordenades reals (depen del dispositiu) a 800x480
-				// game.camera.unproject(touchPos);
 				if (up.contains(touchPos.x, touchPos.y)) {
 					return UP;
 				} else if (down.contains(touchPos.x, touchPos.y)) {
