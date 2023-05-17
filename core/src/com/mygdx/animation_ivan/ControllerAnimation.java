@@ -1,13 +1,15 @@
 package com.mygdx.animation_ivan;
 
 import com.badlogic.gdx.Application;
-import com.badlogic.gdx.ApplicationListener;
+import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
 import com.github.czyzby.websocket.WebSocket;
 import com.github.czyzby.websocket.WebSocketListener;
@@ -15,27 +17,20 @@ import com.github.czyzby.websocket.WebSockets;
 
 import org.json.JSONObject;
 
-import java.awt.Rectangle;
+public class ControllerAnimation extends ApplicationAdapter {
 
-public class ControllerAnimation implements ApplicationListener {
-	private static final int SCR_HEIGHT = 480;
-	private static final int SCR_WIDTH = 800;
-	private int lastSend = 0;
-
-	Animation<TextureRegion> walk_animation;
-	Texture player;
-	Texture background;
-
-	TextureRegion bgRegion;
-
-	Rectangle up, down, left, right, fire;
-	private int UP = 1, DOWN = 0, LEFT = 2, RIGHT = 3, IDLE = 4;
-
-	SpriteBatch batch;
-	float state_time;
-	public TextureRegion[] frames = new TextureRegion[6];
-	public float stateTime = 0f;
+	Texture player, background;
+	SpriteBatch spriteBatch;
+	TextureRegion[] frames = new TextureRegion[6];
+	private OrthographicCamera camera;
 	Animation<TextureRegion> playerAnim;
+	float stateTime;
+	SpriteBatch batch;
+	float posx, posy;
+
+	Rectangle up, down, left, right;
+	final int IDLE = 0, UP = 1, DOWN = 2, LEFT = 3, RIGHT = 4;
+	float lastSend = 0f;
 
 	WebSocket socket;
 	String address = "localhost";
@@ -53,28 +48,27 @@ public class ControllerAnimation implements ApplicationListener {
 		socket.connect();
 		socket.send("Enviar dades");
 
-		player = new Texture(Gdx.files.internal("spritesheet.png"));
-		// facilities per calcular el "touch"
-		up = new Rectangle(0, SCR_HEIGHT * 2 / 3, SCR_WIDTH, SCR_HEIGHT / 3);
-		down = new Rectangle(0, 0, SCR_WIDTH, SCR_HEIGHT / 3);
-		left = new Rectangle(0, 0, SCR_WIDTH / 3, SCR_HEIGHT);
-		right = new Rectangle(SCR_WIDTH * 2 / 3, 0, SCR_WIDTH / 3, SCR_HEIGHT);
-		// per cada frame cal indicar x,y,amplada,alçada
+		background = new Texture(Gdx.files.internal("background.png"));
+		posx = 750;
+		posy = 450;
+		player = new Texture("spritesheet.png");
 		frames[0] = new TextureRegion(player, 86, 87, 26, 30);
 		frames[1] = new TextureRegion(player, 111, 87, 18, 30);
 		frames[2] = new TextureRegion(player, 129, 86, 19, 31);
 		frames[3] = new TextureRegion(player, 149, 87, 25, 29);
 		frames[4] = new TextureRegion(player, 203, 87, 22, 30);
 		frames[5] = new TextureRegion(player, 227, 87, 18, 30);
-		playerAnim = new Animation<>(0.20f, frames);
+		playerAnim = new Animation<>(0.15f, frames);
 
+		camera = new OrthographicCamera();
+		camera.setToOrtho(false, 2900, 1480);
 		batch = new SpriteBatch();
+		stateTime = 0f;
 
-		background = new Texture(Gdx.files.internal("background.png"));
-		background.setWrap(Texture.TextureWrap.MirroredRepeat, Texture.TextureWrap.MirroredRepeat);
-		bgRegion = new TextureRegion(background);
-
-		state_time = 0f;
+		up = new Rectangle(0, 1480 * 2 / 3f, 2900, 2900 / 3f);
+		down = new Rectangle(0, 0, 2900, 1480 / 3f);
+		left = new Rectangle(0, 0, 2900 / 3f, 1480);
+		right = new Rectangle(2900 * 2 / 3f, 0, 2900 / 3f, 1480);
 	}
 
 	@Override
@@ -86,26 +80,26 @@ public class ControllerAnimation implements ApplicationListener {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		stateTime += Gdx.graphics.getDeltaTime();
 		TextureRegion frame = playerAnim.getKeyFrame(stateTime, true);
-		bgRegion.setRegion(100, 100, 800, 480);
 
 		batch.begin();
-		batch.draw(bgRegion, 0, 0);
+		batch.draw(background, 0, 0, 2900, 1480);
 		background.setWrap(Texture.TextureWrap.MirroredRepeat, Texture.TextureWrap.MirroredRepeat);
 		int direction = virtual_joystick_control();
 
 		switch (direction){
 			case 0:
-				Player.transform[1] += Player.speed;
 				break;
 			case 1:
-				Player.transform[1] -= Player.speed;
+				Player.transform[1] += Player.speed;
 				break;
 			case 2:
-				Player.transform[0] += Player.speed;
+				Player.transform[1] -= Player.speed;
 				break;
 			case 3:
 				Player.transform[0] -= Player.speed;
 				break;
+			case 4:
+				Player.transform[0] += Player.speed;
 			default: // IDLE
 				break;
 		}
@@ -122,30 +116,29 @@ public class ControllerAnimation implements ApplicationListener {
 			json.put("player_y", Player.transform[1]);
 			socket.send(json.toString());
 		}
-
 	}
 
 	@Override
 	public void pause() {
+
 	}
 
 	@Override
 	public void resume() {
+
 	}
 
 	@Override
 	public void dispose() {
-		batch.dispose();
-		player.dispose();
+		spriteBatch.dispose();
 	}
 
 	protected int virtual_joystick_control() {
-		// iterar per multitouch
-		// cada "i" és un possible "touch" d'un dit a la pantalla
 		for (int i = 0; i < 10; i++)
 			if (Gdx.input.isTouched(i)) {
 				Vector3 touchPos = new Vector3();
 				touchPos.set(Gdx.input.getX(i), Gdx.input.getY(i), 0);
+				camera.unproject(touchPos);
 				if (up.contains(touchPos.x, touchPos.y)) {
 					return UP;
 				} else if (down.contains(touchPos.x, touchPos.y)) {
@@ -191,5 +184,4 @@ public class ControllerAnimation implements ApplicationListener {
 			return false;
 		}
 	}
-
 }
