@@ -39,9 +39,16 @@ public class ControllerAnimation extends ApplicationAdapter {
 	@Override
 	public void create() {
 
-		if (Gdx.app.getType() == Application.ApplicationType.Android)
+		/*
+			ESTE CODIGO FALLA POR ALGUN MOTIVO, LAS PRUEBAS HAN DE SER EN ANDROID
+
+					if (Gdx.app.getType() == Application.ApplicationType.Android)
 			// en Android el host és accessible per 10.0.2.2
 			address = "10.0.2.2";
+		 */
+
+		address = "10.0.2.2";
+
 		socket = WebSockets.newSocket(WebSockets.toWebSocketUrl(address, port));
 		socket.setSendGracefully(false);
 		socket.addListener((WebSocketListener) new MyWSListener());
